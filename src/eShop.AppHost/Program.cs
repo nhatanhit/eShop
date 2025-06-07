@@ -117,9 +117,14 @@ foreach (var image in dockerImages)
     if (imageName != null)
     {
         var containerName = imageName.Split(':')[0];
-        var projectRef = builder.AddContainer(containerName, imageName)
-            .WithEndpoint(5200, targetPort: 5200, scheme: "http")
-            .WithEndpoint(7228, targetPort: 7228, scheme: "https")
+        var httpPort = string.Empty;
+        var httpsPort = string.Empty;
+        imageEnvs.TryGetValue("HTTP_PORT", out httpPort);
+        imageEnvs.TryGetValue("HTTPS_PORT", out httpsPort);
+        if (!string.IsNullOrEmpty(httpsPort) && !string.IsNullOrEmpty(httpPort)) {
+            var projectRef = builder.AddContainer(containerName, imageName)
+            .WithEndpoint(Int32.Parse(httpPort), targetPort: Int32.Parse(httpPort), scheme: "http")
+            .WithEndpoint(Int32.Parse(httpsPort), targetPort: Int32.Parse(httpsPort), scheme: "https")
                 .WithExternalHttpEndpoints()
                 .WithReference(basketApi)
                 .WithReference(catalogApi)
@@ -127,10 +132,10 @@ foreach (var image in dockerImages)
                 .WithReference(rabbitMq).WaitFor(rabbitMq)
                 .WithEnvironment("IdentityUrl", identityEndpoint)
                 .WithBindMount(source: certPath, target: "/https/aspnet-dev.pfx");
-        ;
-
-        projectRef.WithEnvironment("CallBackUrl", projectRef.GetEndpoint(launchProfileName));
-        identityApi.WithEnvironment("WebAppClient", projectRef.GetEndpoint(launchProfileName));
+            projectRef.WithEnvironment("CallBackUrl", projectRef.GetEndpoint(launchProfileName));
+            identityApi.WithEnvironment("WebAppClient", projectRef.GetEndpoint(launchProfileName));
+        }
+        
 
     }
 
