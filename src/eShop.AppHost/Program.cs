@@ -1,4 +1,6 @@
 ﻿using eShop.AppHost;
+using Docker.DotNet;
+using Docker.DotNet.Models;
 
 var builder = DistributedApplication.CreateBuilder(args);
 
@@ -100,6 +102,41 @@ identityApi.WithEnvironment("BasketApiClient", basketApi.GetEndpoint("http"))
            .WithEnvironment("WebhooksWebClient", webhooksClient.GetEndpoint(launchProfileName))
            .WithEnvironment("WebAppClient", webApp.GetEndpoint(launchProfileName));
 
+var client = new DockerClientConfiguration(new Uri("npipe://./pipe/docker_engine"))
+        .CreateClient();
+var dockerImages = GetDockerImagesByTagAsync(client, "stores").GetAwaiter().GetResult();
+var certPath = Path.Combine(Directory.GetCurrentDirectory(), "./certs/aspnet-dev.pfx");
+
+
+
+foreach (var image in dockerImages)
+{
+    //get environment variable for each docker image
+    var imageEnvs = GetImageDetailsAsync(client, image).GetAwaiter().GetResult();
+    var imageName = image.RepoTags.FirstOrDefault();
+    if (imageName != null)
+    {
+        var containerName = imageName.Split(':')[0];
+        var projectRef = builder.AddContainer(containerName, imageName)
+            .WithEndpoint(5200, targetPort: 5200, scheme: "http")
+            .WithEndpoint(7228, targetPort: 7228, scheme: "https")
+                .WithExternalHttpEndpoints()
+                .WithReference(basketApi)
+                .WithReference(catalogApi)
+                .WithReference(orderingApi)
+                .WithReference(rabbitMq).WaitFor(rabbitMq)
+                .WithEnvironment("IdentityUrl", identityEndpoint)
+                .WithBindMount(source: certPath, target: "/https/aspnet-dev.pfx");
+        ;
+
+        projectRef.WithEnvironment("CallBackUrl", projectRef.GetEndpoint(launchProfileName));
+        identityApi.WithEnvironment("WebAppClient", projectRef.GetEndpoint(launchProfileName));
+
+    }
+
+
+}
+
 builder.Build().Run();
 
 // For test use only.
@@ -112,4 +149,50 @@ static bool ShouldUseHttpForEndpoints()
 
     // Attempt to parse the environment variable value; return true if it's exactly "1".
     return int.TryParse(envValue, out int result) && result == 1;
+}
+
+
+async Task<List<ImagesListResponse>> GetDockerImagesByTagAsync(DockerClient client, string tag)
+{
+
+
+    var images = await client.Images.ListImagesAsync(new ImagesListParameters { All = true });
+    List<ImagesListResponse> list = new List<ImagesListResponse>();
+
+    foreach (var image in images)
+    {
+        var imageTags = image.RepoTags.ToList();
+        if (!string.IsNullOrEmpty(imageTags.FirstOrDefault(t => t.EndsWith($":{tag}", StringComparison.OrdinalIgnoreCase))))
+        {
+            list.Add(image);
+        }
+    }
+
+    return list;
+}
+async Task<Dictionary<string, string>> GetImageDetailsAsync(DockerClient client, ImagesListResponse imagesListResponse)
+{
+    var imageId = imagesListResponse.ID;
+    Dictionary<string, string> mapEnv = new Dictionary<string, string>();
+    if (imageId == null)
+    {
+        return mapEnv;
+    }
+
+    var imageDetails = await client.Images.InspectImageAsync(imageId);
+    if (imageDetails.Config.Env == null)
+    {
+        return mapEnv;
+    }
+    var envVars = imageDetails.Config.Env?.ToList();
+    if (envVars != null)
+    {
+        foreach (var envVar in envVars)
+        {
+            var keyVal = envVar.Split('=');
+            mapEnv.Add(keyVal[0], keyVal[1]);
+        }
+    }
+
+    return mapEnv;
 }
