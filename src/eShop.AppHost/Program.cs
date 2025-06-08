@@ -1,6 +1,7 @@
 ﻿using eShop.AppHost;
 using Docker.DotNet;
 using Docker.DotNet.Models;
+using System.Runtime.InteropServices;
 
 var builder = DistributedApplication.CreateBuilder(args);
 
@@ -102,45 +103,62 @@ identityApi.WithEnvironment("BasketApiClient", basketApi.GetEndpoint("http"))
            .WithEnvironment("WebhooksWebClient", webhooksClient.GetEndpoint(launchProfileName))
            .WithEnvironment("WebAppClient", webApp.GetEndpoint(launchProfileName));
 
-var client = new DockerClientConfiguration(new Uri("npipe://./pipe/docker_engine"))
+var myDict = new Dictionary<string, string>
+        {
+            { "Linux", "unix:///var/run/docker.sock" },
+            { "Windows", "npipe://./pipe/docker_engine" },
+            { "macOS", "unix:///var/run/docker.sock" },
+            { "Unknown", "unix:///var/run/docker.sock"}
+        };
+
+var os = RuntimeInformation.IsOSPlatform(OSPlatform.Linux) ? "Linux"
+       : RuntimeInformation.IsOSPlatform(OSPlatform.Windows) ? "Windows"
+       : RuntimeInformation.IsOSPlatform(OSPlatform.OSX) ? "macOS"
+       : "Unknown";
+
+
+var dockerEngineString = string.Empty;
+myDict.TryGetValue(os,out dockerEngineString);
+if (!string.IsNullOrEmpty(dockerEngineString)) {
+    var client = new DockerClientConfiguration(new Uri(dockerEngineString))
         .CreateClient();
-var dockerImages = GetDockerImagesByTagAsync(client, "stores").GetAwaiter().GetResult();
-var certPath = Path.Combine(Directory.GetCurrentDirectory(), "./certs/aspnet-dev.pfx");
-
-
-
-foreach (var image in dockerImages)
-{
-    //get environment variable for each docker image
-    var imageEnvs = GetImageDetailsAsync(client, image).GetAwaiter().GetResult();
-    var imageName = image.RepoTags.FirstOrDefault();
-    if (imageName != null)
+    var dockerImages = GetDockerImagesByTagAsync(client, "stores").GetAwaiter().GetResult();
+    var certPath = Path.Combine(Directory.GetCurrentDirectory(), "./certs/aspnet-dev.pfx");
+    foreach (var image in dockerImages)
     {
-        var containerName = imageName.Split(':')[0];
-        var httpPort = string.Empty;
-        var httpsPort = string.Empty;
-        imageEnvs.TryGetValue("HTTP_PORT", out httpPort);
-        imageEnvs.TryGetValue("HTTPS_PORT", out httpsPort);
-        if (!string.IsNullOrEmpty(httpsPort) && !string.IsNullOrEmpty(httpPort)) {
-            var projectRef = builder.AddContainer(containerName, imageName)
-            .WithEndpoint(Int32.Parse(httpPort), targetPort: Int32.Parse(httpPort), scheme: "http")
-            .WithEndpoint(Int32.Parse(httpsPort), targetPort: Int32.Parse(httpsPort), scheme: "https")
-                .WithExternalHttpEndpoints()
-                .WithReference(basketApi)
-                .WithReference(catalogApi)
-                .WithReference(orderingApi)
-                .WithReference(rabbitMq).WaitFor(rabbitMq)
-                .WithEnvironment("IdentityUrl", identityEndpoint)
-                .WithBindMount(source: certPath, target: "/https/aspnet-dev.pfx");
-            projectRef.WithEnvironment("CallBackUrl", projectRef.GetEndpoint(launchProfileName));
-            identityApi.WithEnvironment("WebAppClient", projectRef.GetEndpoint(launchProfileName));
+        //get environment variable for each docker image
+        var imageEnvs = GetImageDetailsAsync(client, image).GetAwaiter().GetResult();
+        var imageName = image.RepoTags.FirstOrDefault();
+        if (imageName != null)
+        {
+            var containerName = imageName.Split(':')[0];
+            var httpPort = string.Empty;
+            var httpsPort = string.Empty;
+            imageEnvs.TryGetValue("HTTP_PORT", out httpPort);
+            imageEnvs.TryGetValue("HTTPS_PORT", out httpsPort);
+            if (!string.IsNullOrEmpty(httpsPort) && !string.IsNullOrEmpty(httpPort))
+            {
+                var projectRef = builder.AddContainer(containerName, imageName)
+                .WithEndpoint(Int32.Parse(httpPort), targetPort: Int32.Parse(httpPort), scheme: "http")
+                .WithEndpoint(Int32.Parse(httpsPort), targetPort: Int32.Parse(httpsPort), scheme: "https")
+                    .WithExternalHttpEndpoints()
+                    .WithReference(basketApi)
+                    .WithReference(catalogApi)
+                    .WithReference(orderingApi)
+                    .WithReference(rabbitMq).WaitFor(rabbitMq)
+                    .WithEnvironment("IdentityUrl", identityEndpoint)
+                    .WithBindMount(source: certPath, target: "/https/aspnet-dev.pfx");
+                projectRef.WithEnvironment("CallBackUrl", projectRef.GetEndpoint(launchProfileName));
+                identityApi.WithEnvironment("WebAppClient", projectRef.GetEndpoint(launchProfileName));
+            }
+
+
         }
-        
+
 
     }
-
-
 }
+
 
 builder.Build().Run();
 
