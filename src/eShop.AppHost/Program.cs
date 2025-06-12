@@ -123,7 +123,7 @@ if (!string.IsNullOrEmpty(dockerEngineString)) {
     var client = new DockerClientConfiguration(new Uri(dockerEngineString))
         .CreateClient();
     var dockerImages = GetDockerImagesByTagAsync(client, "stores").GetAwaiter().GetResult();
-    var certPath = Path.Combine(Directory.GetCurrentDirectory(), "./certs/aspnet-dev.pfx");
+    var certPath = Path.Combine(Directory.GetCurrentDirectory(), "./certs/");
     foreach (var image in dockerImages)
     {
         //get environment variable for each docker image
@@ -147,7 +147,7 @@ if (!string.IsNullOrEmpty(dockerEngineString)) {
                     .WithReference(orderingApi)
                     .WithReference(rabbitMq).WaitFor(rabbitMq)
                     .WithEnvironment("IdentityUrl", identityEndpoint)
-                    .WithBindMount(source: certPath, target: "/https/aspnet-dev.pfx");
+                    .WithBindMount(source: certPath, target: "/app/https/");
                 projectRef.WithEnvironment("CallBackUrl", projectRef.GetEndpoint(launchProfileName));
                 identityApi.WithEnvironment("WebAppClient", projectRef.GetEndpoint(launchProfileName));
             }
