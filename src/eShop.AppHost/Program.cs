@@ -1,4 +1,4 @@
-﻿using eShop.AppHost;
+ using eShop.AppHost;
 using Docker.DotNet;
 using Docker.DotNet.Models;
 using System.Runtime.InteropServices;
@@ -147,7 +147,7 @@ if (!string.IsNullOrEmpty(dockerEngineString)) {
                     .WithReference(orderingApi)
                     .WithReference(rabbitMq).WaitFor(rabbitMq)
                     .WithEnvironment("IdentityUrl", identityEndpoint)
-                    .WithBindMount(source: certPath, target: "/app/https/");
+                    .WithBindMount(source: certPath, target: "/https/");
                 projectRef.WithEnvironment("CallBackUrl", projectRef.GetEndpoint(launchProfileName));
                 identityApi.WithEnvironment("WebAppClient", projectRef.GetEndpoint(launchProfileName));
             }
@@ -158,6 +158,9 @@ if (!string.IsNullOrEmpty(dockerEngineString)) {
 
     }
 }
+
+
+builder.AddProject<Projects.StoreProcessor>("storeprocessor");
 
 
 builder.Build().Run();
