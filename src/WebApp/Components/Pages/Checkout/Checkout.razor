@@ -5,7 +5,11 @@
 @inject NavigationManager Nav
 @attribute [Authorize]
 
-<PageTitle>Checkout | AdventureWorks</PageTitle>
+@using eShop.WebApp.Settings
+@inject Microsoft.Extensions.Options.IOptions<StoreSettings> StoreSettings
+
+
+<PageTitle>Checkout | @StoreSettings.Value.StoreName</PageTitle>
 <SectionContent SectionName="page-header-title">Checkout</SectionContent>
 
 <div class='checkout'>

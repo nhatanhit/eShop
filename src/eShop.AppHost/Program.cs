@@ -1,15 +1,34 @@
- using eShop.AppHost;
+﻿using eShop.AppHost;
 using Docker.DotNet;
 using Docker.DotNet.Models;
 using System.Runtime.InteropServices;
+using Aspire.Hosting;
+using System.Net.Sockets;
+
+//docker exec -it great_burnell rabbitmqctl add_user storefront "localpass"
+
+
+//docker exec -it great_burnell rabbitmqctl set_user_tags storefront administrator
+
+//docker exec -it great_burnell rabbitmqctl set_permissions -p / storefront ".*" ".*" ".*"
+
+
+//{"RootStoreProject":"C:\\n8n projects\\vendors","DockerTag":"vpukachu:stores","ProjectName":"VPukachu","DockerFileWorkingDirectory":"C:\\n8n projects\\vendors\\VPukachu","NoCache":false,"Target":null,"Platform":"linux/amd64","BuildArgs":null,"Id":"99df1b48-9bc1-4075-962c-601928072762","CreationDate":"2025-10-04T22:30:02.9857483+07:00"}
+
+//{"RootStoreProject":"C:\\n8n projects\\vendors","DockerTag":"vkuterabbit:stores","ProjectName":"VKuterabbit","DockerFileWorkingDirectory":"C:\\n8n projects\\vendors\\VKuterabbit","NoCache":false,"Target":null,"Platform":"linux/amd64","BuildArgs":null,"Id":"68df08a2-e1aa-4bf6-9ceb-0cec8b721ea9","CreationDate":"2025-10-05T23:19:36.169499+07:00"}
 
 var builder = DistributedApplication.CreateBuilder(args);
 
 builder.AddForwardedHeaders();
 
 var redis = builder.AddRedis("redis");
-var rabbitMq = builder.AddRabbitMQ("eventbus")
-    .WithLifetime(ContainerLifetime.Persistent);
+//var rabbitMq = builder.AddRabbitMQ("eventbus")
+//    .WithImage("rabbitmq:4.1-management")
+//    .WithEndpoint(15671, targetPort: 15672, name: "management")
+//    .WithLifetime(ContainerLifetime.Persistent);
+
+var externalRabbitMq = builder.AddConnectionString("ExternalRabbitMQ");
+
 var postgres = builder.AddPostgres("postgres")
     .WithImage("ankane/pgvector")
     .WithImageTag("latest")
@@ -29,32 +48,42 @@ var identityApi = builder.AddProject<Projects.Identity_API>("identity-api", laun
 
 var identityEndpoint = identityApi.GetEndpoint(launchProfileName);
 
+//var basketApi = builder.AddProject<Projects.Basket_API>("basket-api")
+//    .WithReference(redis)
+//    .WithReference(rabbitMq).WaitFor(rabbitMq)
+//    .WithEnvironment("Identity__Url", identityEndpoint);
+
 var basketApi = builder.AddProject<Projects.Basket_API>("basket-api")
     .WithReference(redis)
-    .WithReference(rabbitMq).WaitFor(rabbitMq)
+    .WithReference(externalRabbitMq).WaitFor(externalRabbitMq)
     .WithEnvironment("Identity__Url", identityEndpoint);
+
+
 redis.WithParentRelationship(basketApi);
 
 var catalogApi = builder.AddProject<Projects.Catalog_API>("catalog-api")
-    .WithReference(rabbitMq).WaitFor(rabbitMq)
+    .WithReference(externalRabbitMq).WaitFor(externalRabbitMq)
     .WithReference(catalogDb);
 
 var orderingApi = builder.AddProject<Projects.Ordering_API>("ordering-api")
-    .WithReference(rabbitMq).WaitFor(rabbitMq)
+    .WithReference(externalRabbitMq).WaitFor(externalRabbitMq)
     .WithReference(orderDb).WaitFor(orderDb)
     .WithHttpHealthCheck("/health")
     .WithEnvironment("Identity__Url", identityEndpoint);
 
 builder.AddProject<Projects.OrderProcessor>("order-processor")
-    .WithReference(rabbitMq).WaitFor(rabbitMq)
+    .WithReference(externalRabbitMq).WaitFor(externalRabbitMq)
     .WithReference(orderDb)
     .WaitFor(orderingApi); // wait for the orderingApi to be ready because that contains the EF migrations
 
 builder.AddProject<Projects.PaymentProcessor>("payment-processor")
-    .WithReference(rabbitMq).WaitFor(rabbitMq);
+    .WithReference(externalRabbitMq).WaitFor(externalRabbitMq);
+
+
+
 
 var webHooksApi = builder.AddProject<Projects.Webhooks_API>("webhooks-api")
-    .WithReference(rabbitMq).WaitFor(rabbitMq)
+    .WithReference(externalRabbitMq).WaitFor(externalRabbitMq)
     .WithReference(webhooksDb)
     .WithEnvironment("Identity__Url", identityEndpoint);
 
@@ -76,7 +105,7 @@ var webApp = builder.AddProject<Projects.WebApp>("webapp", launchProfileName)
     .WithReference(basketApi)
     .WithReference(catalogApi)
     .WithReference(orderingApi)
-    .WithReference(rabbitMq).WaitFor(rabbitMq)
+    .WithReference(externalRabbitMq).WaitFor(externalRabbitMq)
     .WithEnvironment("IdentityUrl", identityEndpoint);
 
 // set to true if you want to use OpenAI
@@ -138,18 +167,18 @@ if (!string.IsNullOrEmpty(dockerEngineString)) {
             imageEnvs.TryGetValue("HTTPS_PORT", out httpsPort);
             if (!string.IsNullOrEmpty(httpsPort) && !string.IsNullOrEmpty(httpPort))
             {
-                var projectRef = builder.AddContainer(containerName, imageName)
-                .WithEndpoint(Int32.Parse(httpPort), targetPort: Int32.Parse(httpPort), scheme: "http")
-                .WithEndpoint(Int32.Parse(httpsPort), targetPort: Int32.Parse(httpsPort), scheme: "https")
-                    .WithExternalHttpEndpoints()
-                    .WithReference(basketApi)
-                    .WithReference(catalogApi)
-                    .WithReference(orderingApi)
-                    .WithReference(rabbitMq).WaitFor(rabbitMq)
-                    .WithEnvironment("IdentityUrl", identityEndpoint)
-                    .WithBindMount(source: certPath, target: "/https/");
-                projectRef.WithEnvironment("CallBackUrl", projectRef.GetEndpoint(launchProfileName));
-                identityApi.WithEnvironment("WebAppClient", projectRef.GetEndpoint(launchProfileName));
+                //var projectRef = builder.AddContainer(containerName, imageName)
+                //.WithEndpoint(Int32.Parse(httpPort), targetPort: Int32.Parse(httpPort), scheme: "http")
+                //.WithEndpoint(Int32.Parse(httpsPort), targetPort: Int32.Parse(httpsPort), scheme: "https")
+                //    .WithExternalHttpEndpoints()
+                //    .WithReference(basketApi)
+                //    .WithReference(catalogApi)
+                //    .WithReference(orderingApi)
+                //    .WithReference(externalRabbitMq).WaitFor(externalRabbitMq)
+                //    .WithEnvironment("IdentityUrl", identityEndpoint)
+                //    .WithBindMount(source: certPath, target: "/https/");
+                //projectRef.WithEnvironment("CallBackUrl", projectRef.GetEndpoint(launchProfileName));
+                //identityApi.WithEnvironment("WebAppClient", projectRef.GetEndpoint(launchProfileName));
             }
 
 
@@ -159,8 +188,12 @@ if (!string.IsNullOrEmpty(dockerEngineString)) {
     }
 }
 
-
-builder.AddProject<Projects.StoreProcessor>("storeprocessor");
+builder.AddProject<Projects.VendorProcessor>("vendorprocessor")
+    .WithReference(basketApi)
+    .WithReference(catalogApi)
+    .WithReference(orderingApi)
+    .WithReference(externalRabbitMq).WaitFor(externalRabbitMq)
+    .WithEnvironment("IdentityUrl", identityEndpoint);
 
 
 builder.Build().Run();

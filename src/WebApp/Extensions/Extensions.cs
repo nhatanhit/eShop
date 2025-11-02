@@ -14,7 +14,7 @@ public static class Extensions
     {
         builder.AddAuthenticationServices();
 
-        builder.AddRabbitMqEventBus("EventBus")
+        builder.AddRabbitMqEventBus("ExternalRabbitMQ")
                .AddEventBusSubscriptions();
 
         builder.Services.AddHttpForwarderWithServiceDiscovery();

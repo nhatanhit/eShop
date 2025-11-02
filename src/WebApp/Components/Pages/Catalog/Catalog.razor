@@ -3,7 +3,11 @@
 @inject CatalogService CatalogService
 @attribute [StreamRendering]
 
-<PageTitle>AdventureWorks</PageTitle>
+@using eShop.WebApp.Settings
+@inject Microsoft.Extensions.Options.IOptions<StoreSettings> StoreSettings
+
+
+<PageTitle>@StoreSettings.Value.StoreName</PageTitle>
 <SectionContent SectionName="page-header-title">Ready for a new adventure?</SectionContent>
 <SectionContent SectionName="page-header-subtitle">Start the season with the latest in clothing and equipment.</SectionContent>
 

@@ -3,7 +3,11 @@
 @attribute [StreamRendering]
 @inject OrderingService OrderingService
 
-<PageTitle>Orders | AdventureWorks</PageTitle>
+
+@using eShop.WebApp.Settings
+@inject Microsoft.Extensions.Options.IOptions<StoreSettings> StoreSettings
+
+<PageTitle>Orders | @StoreSettings.Value.StoreName</PageTitle>
 <SectionContent SectionName="page-header-title">Orders</SectionContent>
 <OrdersRefreshOnStatusChange />
 

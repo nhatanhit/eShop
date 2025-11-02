@@ -4,7 +4,7 @@
     {
         builder.AddDefaultAuthentication();
 
-        builder.AddRabbitMqEventBus("eventbus")
+        builder.AddRabbitMqEventBus("ExternalRabbitMQ")
                .AddEventBusSubscriptions();
 
         builder.AddNpgsqlDbContext<WebhooksContext>("webhooksdb");

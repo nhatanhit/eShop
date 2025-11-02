@@ -1,4 +1,6 @@
 ﻿@using Microsoft.AspNetCore.Components.Endpoints
+@using eShop.WebApp.Settings
+@inject Microsoft.Extensions.Options.IOptions<StoreSettings> StoreSettings
 
 <div class="eshop-header @(IsCatalog? "home" : "")">
     <div class="eshop-header-hero">
@@ -10,7 +12,7 @@
     <div class="eshop-header-container">
         <nav class="eshop-header-navbar">
             <a class="logo logo-header" href="">
-                <img alt="AdventureWorks" src="images/logo-header.svg" class="logo logo-header" />
+				<img alt="@StoreSettings.Value.StoreName" src="images/logo-header.svg" class="logo logo-header" />
             </a>
             
             <UserMenu />

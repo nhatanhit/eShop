@@ -7,7 +7,7 @@ public static class Extensions
 {
     public static void AddApplicationServices(this IHostApplicationBuilder builder)
     {
-        builder.AddRabbitMqEventBus("eventbus")
+        builder.AddRabbitMqEventBus("EventBus")
                .ConfigureJsonOptions(options => options.TypeInfoResolverChain.Add(IntegrationEventContext.Default));
 
         builder.AddNpgsqlDataSource("orderingdb");

@@ -14,6 +14,17 @@
             "cwd": "${workspaceFolder}/eShop.AppHost",
             "stopAtEntry": false,
             "console": "internalConsole"
+        },
+        {
+            "name": "Debug WebApp",
+            "type": "coreclr",
+            "request": "launch",
+            "preLaunchTask": "build-webapp",
+            "program": "${workspaceFolder}/WebApp/bin/Debug/net9.0/WebApp.dll",
+            "args": [],
+            "cwd": "${workspaceFolder}/WebApp",
+            "stopAtEntry": false,
+            "console": "internalConsole"
         }   
     ]
 }

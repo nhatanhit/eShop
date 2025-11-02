@@ -1,5 +1,6 @@
 ﻿using eShop.WebApp.Components;
 using eShop.ServiceDefaults;
+using eShop.WebApp.Settings;
 
 var builder = WebApplication.CreateBuilder(args);
 
@@ -8,6 +9,9 @@ builder.AddServiceDefaults();
 builder.Services.AddRazorComponents().AddInteractiveServerComponents();
 
 builder.AddApplicationServices();
+
+builder.Services.Configure<StoreSettings>(
+    builder.Configuration.GetSection("StoreSetting"));
 
 var app = builder.Build();
 
@@ -30,5 +34,6 @@ app.UseStaticFiles();
 app.MapRazorComponents<App>().AddInteractiveServerRenderMode();
 
 app.MapForwarder("/product-images/{id}", "http://catalog-api", "/api/catalog/items/{id}/pic");
+
 
 app.Run();

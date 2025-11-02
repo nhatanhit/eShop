@@ -23,7 +23,7 @@
 
         services.AddTransient<IOrderingIntegrationEventService, OrderingIntegrationEventService>();
 
-        builder.AddRabbitMqEventBus("eventbus")
+        builder.AddRabbitMqEventBus("ExternalRabbitMQ")
                .AddEventBusSubscriptions();
 
         services.AddHttpContextAccessor();

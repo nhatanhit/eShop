@@ -4,8 +4,10 @@
 @inject IProductImageUrlProvider ProductImages
 @attribute [StreamRendering]
 @attribute [Authorize]
+@using eShop.WebApp.Settings
+@inject Microsoft.Extensions.Options.IOptions<StoreSettings> StoreSettings
 
-<PageTitle>Shopping Bag | AdventureWorks</PageTitle>
+<PageTitle>Shopping Bag | @StoreSettings.Value.StoreName</PageTitle>
 <SectionContent SectionName="page-header-title">Shopping bag</SectionContent>
 
 <div class='cart'>

@@ -5,9 +5,14 @@
 @inject NavigationManager Nav
 @inject IProductImageUrlProvider ProductImages
 
+
+@using eShop.WebApp.Settings
+@inject Microsoft.Extensions.Options.IOptions<StoreSettings> StoreSettings
+
+
 @if (item is not null)
 {
-    <PageTitle>@item.Name | AdventureWorks</PageTitle>
+	<PageTitle>@item.Name | @StoreSettings.Value.StoreName</PageTitle>
     <SectionContent SectionName="page-header-title">@item.Name</SectionContent>
     <SectionContent SectionName="page-header-subtitle">@item.CatalogBrand?.Brand</SectionContent>
 
